@@ -15,9 +15,9 @@ export async function apiClient<T = any>(
   const { requiresAuth = false, token, ...fetchOptions } = options || {};
   const url = `${API_BASE_URL}${endpoint}`;
   
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...fetchOptions?.headers,
+    ...(fetchOptions?.headers as Record<string, string>),
   };
   
   // Use provided token or fall back to localStorage
