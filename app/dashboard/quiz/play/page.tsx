@@ -9,7 +9,7 @@ import {
     Spinner,
     Chip,
 } from "@heroui/react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -21,7 +21,9 @@ interface QuizQuestion {
     explanation: string;
 }
 
-type QuizState = "loading" | "ready" | "playing" | "review" | "complete" | "error";
+type QuizState = "loading" | "ready" | "playing" | "review" | "complete" | "timeout" | "error";
+
+const QUIZ_DURATION_SECONDS = 10 * 60; // 10 minutes
 
 export default function QuizPlayPage() {
     const { user, session } = useAuth();
@@ -40,9 +42,61 @@ export default function QuizPlayPage() {
     const [scoreSaved, setScoreSaved] = useState(false);
     const [savingScore, setSavingScore] = useState(false);
 
+    // Timer state
+    const [timeRemaining, setTimeRemaining] = useState(QUIZ_DURATION_SECONDS);
+    const timerRef = useRef<NodeJS.Timeout | null>(null);
+
     // Parse URL params
     const documentNames = searchParams.get("docs")?.split(",").filter(Boolean) || [];
     const knowledgeIds = searchParams.get("knowledge")?.split(",").filter(Boolean) || [];
+
+    // Format time as MM:SS
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    // Get timer color based on remaining time
+    const getTimerColor = () => {
+        if (timeRemaining <= 60) return "text-danger"; // Last minute - red
+        if (timeRemaining <= 180) return "text-warning"; // Last 3 minutes - yellow
+        return "text-white"; // Normal - white
+    };
+
+    // Timer effect - runs when quiz is playing
+    useEffect(() => {
+        if (quizState === "playing") {
+            timerRef.current = setInterval(() => {
+                setTimeRemaining((prev) => {
+                    if (prev <= 1) {
+                        // Time's up!
+                        if (timerRef.current) {
+                            clearInterval(timerRef.current);
+                        }
+                        setQuizState("timeout");
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+        }
+
+        return () => {
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+            }
+        };
+    }, [quizState]);
+
+    // Stop timer when quiz ends normally
+    useEffect(() => {
+        if (quizState === "complete" || quizState === "timeout") {
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+            }
+        }
+    }, [quizState]);
 
     const generateQuiz = useCallback(async () => {
         if (!user || !session?.access_token) return;
@@ -127,6 +181,7 @@ export default function QuizPlayPage() {
         setSelectedAnswer(null);
         setAnswers(new Map());
         setShowExplanation(false);
+        setTimeRemaining(QUIZ_DURATION_SECONDS); // Reset timer
     };
 
     const handleRestartQuiz = () => {
@@ -135,6 +190,7 @@ export default function QuizPlayPage() {
         setAnswers(new Map());
         setShowExplanation(false);
         setScoreSaved(false);
+        setTimeRemaining(QUIZ_DURATION_SECONDS); // Reset timer
         setQuizState("playing");
     };
 
@@ -182,9 +238,9 @@ export default function QuizPlayPage() {
         }
     }, [session, scoreSaved, savingScore, calculateScore, questions.length, documentNames, knowledgeIds]);
 
-    // Save score when quiz is completed
+    // Save score when quiz is completed or times out
     useEffect(() => {
-        if (quizState === "complete" && !scoreSaved && !savingScore) {
+        if ((quizState === "complete" || quizState === "timeout") && !scoreSaved && !savingScore) {
             saveScore();
         }
     }, [quizState, scoreSaved, savingScore, saveScore]);
@@ -291,7 +347,7 @@ export default function QuizPlayPage() {
                             Tu cuestionario personalizado ha sido generado basado en el contenido seleccionado.
                         </p>
                         
-                        <div className="grid grid-cols-2 gap-4 mb-8">
+                        <div className="grid grid-cols-3 gap-4 mb-8">
                             <div className="bg-white/5 rounded-xl p-4">
                                 <p className="text-3xl font-bold text-secondary">{questions.length}</p>
                                 <p className="text-white/40 text-sm">Preguntas</p>
@@ -302,6 +358,22 @@ export default function QuizPlayPage() {
                                 </p>
                                 <p className="text-white/40 text-sm">Fuentes</p>
                             </div>
+                            <div className="bg-white/5 rounded-xl p-4">
+                                <p className="text-3xl font-bold text-amber-400">10</p>
+                                <p className="text-white/40 text-sm">Minutos</p>
+                            </div>
+                        </div>
+
+                        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 mb-6">
+                            <div className="flex items-center justify-center gap-2 text-amber-400">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span className="font-medium">Tienes 10 minutos para completar el cuestionario</span>
+                            </div>
+                            <p className="text-white/50 text-sm mt-1">
+                                El tiempo comenzará cuando presiones el botón
+                            </p>
                         </div>
 
                         <Button
@@ -322,6 +394,94 @@ export default function QuizPlayPage() {
         );
     }
 
+    // Timeout State - Time's Up
+    if (quizState === "timeout") {
+        const score = calculateScore();
+        const answeredQuestions = answers.size;
+        const percentage = answeredQuestions > 0 ? Math.round((score / answeredQuestions) * 100) : 0;
+
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+                <Card className="bg-white/5 border border-white/10 max-w-lg w-full">
+                    <CardBody className="p-8 text-center">
+                        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center mx-auto mb-6">
+                            <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <h2 className="text-2xl font-bold text-amber-400 mb-2">
+                            ⏰ ¡Se acabó el tiempo!
+                        </h2>
+                        <p className="text-white/60 mb-8">
+                            Respondiste {answeredQuestions} de {questions.length} preguntas
+                        </p>
+
+                        {/* Score Breakdown */}
+                        <div className="bg-white/5 rounded-xl p-4 mb-4">
+                            <div className="flex justify-between mb-2">
+                                <span className="text-white/60">Respondidas</span>
+                                <span className="text-white font-medium">{answeredQuestions}</span>
+                            </div>
+                            <div className="flex justify-between mb-2">
+                                <span className="text-white/60">Correctas</span>
+                                <span className="text-success font-medium">{score}</span>
+                            </div>
+                            <div className="flex justify-between mb-2">
+                                <span className="text-white/60">Incorrectas</span>
+                                <span className="text-danger font-medium">{answeredQuestions - score}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-white/60">Sin responder</span>
+                                <span className="text-white/40 font-medium">{questions.length - answeredQuestions}</span>
+                            </div>
+                        </div>
+
+                        {answeredQuestions > 0 && (
+                            <div className="bg-white/5 rounded-xl p-4 mb-6">
+                                <p className="text-white/60 text-sm">Precisión en preguntas respondidas</p>
+                                <p className="text-3xl font-bold text-secondary">{percentage}%</p>
+                            </div>
+                        )}
+
+                        {/* Score Saved Indicator */}
+                        <div className="flex items-center justify-center gap-2 mb-6 text-sm">
+                            {savingScore ? (
+                                <>
+                                    <Spinner size="sm" color="secondary" />
+                                    <span className="text-white/40">Guardando resultado...</span>
+                                </>
+                            ) : scoreSaved ? (
+                                <>
+                                    <svg className="w-4 h-4 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    <span className="text-success">Resultado guardado</span>
+                                </>
+                            ) : null}
+                        </div>
+
+                        <div className="flex gap-3">
+                            <Button
+                                variant="flat"
+                                className="flex-1"
+                                onPress={() => router.push("/dashboard/quiz")}
+                            >
+                                Nuevo Cuestionario
+                            </Button>
+                            <Button
+                                color="secondary"
+                                className="flex-1"
+                                onPress={handleRestartQuiz}
+                            >
+                                Reintentar
+                            </Button>
+                        </div>
+                    </CardBody>
+                </Card>
+            </div>
+        );
+    }
+
     // Complete State - Results
     if (quizState === "complete") {
         const score = calculateScore();
@@ -335,6 +495,7 @@ export default function QuizPlayPage() {
         };
         
         const result = getResultMessage();
+        const timeUsed = QUIZ_DURATION_SECONDS - timeRemaining;
 
         return (
             <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
@@ -346,8 +507,11 @@ export default function QuizPlayPage() {
                         <h2 className={`text-2xl font-bold mb-2 ${result.color}`}>
                             {result.text}
                         </h2>
-                        <p className="text-white/60 mb-8">
+                        <p className="text-white/60 mb-2">
                             Obtuviste {score} de {questions.length} respuestas correctas
+                        </p>
+                        <p className="text-white/40 text-sm mb-8">
+                            Tiempo usado: {formatTime(timeUsed)} de 10:00
                         </p>
 
                         {/* Score Breakdown */}
@@ -405,7 +569,7 @@ export default function QuizPlayPage() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
             {/* Header */}
-            <header className="border-b border-white/10 backdrop-blur-sm sticky top-0 z-10">
+            <header className="border-b border-white/10 backdrop-blur-sm sticky top-0 z-10 bg-slate-900/80">
                 <div className="max-w-3xl mx-auto px-6 py-4">
                     <div className="flex items-center justify-between mb-3">
                         <Button
@@ -418,10 +582,26 @@ export default function QuizPlayPage() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </Button>
+                        
+                        {/* Timer */}
+                        <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${
+                            timeRemaining <= 60 
+                                ? "bg-danger/20 border border-danger/30" 
+                                : timeRemaining <= 180 
+                                ? "bg-warning/20 border border-warning/30"
+                                : "bg-white/5 border border-white/10"
+                        }`}>
+                            <svg className={`w-5 h-5 ${getTimerColor()}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span className={`font-mono font-bold text-lg ${getTimerColor()}`}>
+                                {formatTime(timeRemaining)}
+                            </span>
+                        </div>
+
                         <Chip color="secondary" variant="flat">
-                            Pregunta {currentQuestionIndex + 1} de {questions.length}
+                            {currentQuestionIndex + 1}/{questions.length}
                         </Chip>
-                        <div className="w-10" /> {/* Spacer */}
                     </div>
                     <Progress
                         value={progress}
