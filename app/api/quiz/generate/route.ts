@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { documentNames, knowledgeIds, questionCount = 10 } = body;
+        const { documentNames, knowledgeIds, questionCount = 10, timeMinutes = 10 } = body;
 
         if (
             (!documentNames || documentNames.length === 0) &&
@@ -132,6 +132,8 @@ export async function POST(request: NextRequest) {
                     
 Reglas:
 - Genera exactamente ${questionCount} preguntas
+- El usuario tendrá ${timeMinutes} minutos para completar el cuestionario
+- Ajusta la dificultad y complejidad de las preguntas según el tiempo disponible (más tiempo = preguntas más profundas y reflexivas)
 - Cada pregunta debe tener exactamente 4 opciones (A, B, C, D)
 - Las preguntas deben evaluar comprensión, no solo memorización
 - Incluye una breve explicación para cada respuesta correcta

@@ -48,6 +48,47 @@ export default function QuizPage() {
     const [knowledgeError, setKnowledgeError] = useState<string | null>(null);
     const [selectedKnowledge, setSelectedKnowledge] = useState<Set<string>>(new Set());
 
+    // Quiz count state
+    const [quizCount, setQuizCount] = useState<number>(0);
+    const [isLoadingQuizCount, setIsLoadingQuizCount] = useState(true);
+
+    // Custom quiz settings (unlocked after 3 quizzes)
+    const [customQuestionCount, setCustomQuestionCount] = useState<number>(10);
+    const [customTimeMinutes, setCustomTimeMinutes] = useState<number>(10);
+
+    // Fetch quiz count from results
+    useEffect(() => {
+        const fetchQuizCount = async () => {
+            if (!user) return;
+
+            setIsLoadingQuizCount(true);
+
+            try {
+                const session = await supabase.auth.getSession();
+                const accessToken = session.data.session?.access_token;
+
+                if (!accessToken) return;
+
+                const response = await fetch("/api/quiz/results", {
+                    headers: {
+                        "Authorization": `Bearer ${accessToken}`,
+                    },
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    setQuizCount(data.summary.totalQuizzes || 0);
+                }
+            } catch (error: any) {
+                // Silently fail - quiz count is not critical
+            } finally {
+                setIsLoadingQuizCount(false);
+            }
+        };
+
+        fetchQuizCount();
+    }, [user]);
+
     // Fetch documents from storage
     useEffect(() => {
         const fetchDocuments = async () => {
@@ -199,6 +240,12 @@ export default function QuizPage() {
             params.set("knowledge", Array.from(selectedKnowledge).join(","));
         }
         
+        // Add custom parameters if unlocked
+        if (quizCount >= 3) {
+            params.set("questionCount", customQuestionCount.toString());
+            params.set("timeMinutes", customTimeMinutes.toString());
+        }
+        
         router.push(`/dashboard/quiz/play?${params.toString()}`);
     };
 
@@ -227,6 +274,7 @@ export default function QuizPage() {
                             />
                         </svg>
                     </Button>
+                    <img src="/logo.png" alt="Acertijos de Estudio" className="h-8 w-8 object-contain" />
                     <h1 className="text-xl font-bold text-white tracking-tight">
                         Iniciar Cuestionario
                     </h1>
@@ -243,6 +291,85 @@ export default function QuizPage() {
                         Elige los documentos y contenido sobre los que quieres ser evaluado
                     </p>
                 </div>
+
+                {/* Premium Feature Banner - Shows when user has 3+ quizzes */}
+                {!isLoadingQuizCount && quizCount >= 3 && (
+                    <Card className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border-2 border-amber-500/50 mb-6">
+                        <CardBody className="p-6">
+                            <div className="flex items-start gap-4">
+                                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shrink-0">
+                                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                                    </svg>
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="text-xl font-bold text-amber-400 mb-2 flex items-center gap-2">
+                                        🎉 ¡Función Premium Desbloqueada!
+                                    </h3>
+                                    <p className="text-white/90 mb-3">
+                                        Has completado <span className="font-bold text-amber-400">{quizCount} cuestionarios</span>. Ahora puedes personalizar:
+                                    </p>
+                                    <ul className="text-white/80 space-y-1 mb-4">
+                                        <li className="flex items-center gap-2">
+                                            <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                            <span>Cantidad de preguntas (máximo 30)</span>
+                                        </li>
+                                        <li className="flex items-center gap-2">
+                                            <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                            <span>Tiempo límite personalizado (ponete un tiempo acorde, no seas miedoso 👀)</span>
+                                        </li>
+                                    </ul>
+                                    
+                                    {/* Custom Settings */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white/5 rounded-xl p-4 border border-white/10">
+                                        <div>
+                                            <label className="block text-white/90 text-sm font-medium mb-2">
+                                                Cantidad de Preguntas
+                                            </label>
+                                            <div className="flex items-center gap-3">
+                                                <input
+                                                    type="range"
+                                                    min="5"
+                                                    max="30"
+                                                    step="5"
+                                                    value={customQuestionCount}
+                                                    onChange={(e) => setCustomQuestionCount(parseInt(e.target.value))}
+                                                    className="flex-1 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                                                />
+                                                <span className="text-2xl font-bold text-amber-400 min-w-[3rem] text-right">
+                                                    {customQuestionCount}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-white/90 text-sm font-medium mb-2">
+                                                Tiempo Límite (minutos)
+                                            </label>
+                                            <div className="flex items-center gap-3">
+                                                <input
+                                                    type="range"
+                                                    min="5"
+                                                    max="60"
+                                                    step="5"
+                                                    value={customTimeMinutes}
+                                                    onChange={(e) => setCustomTimeMinutes(parseInt(e.target.value))}
+                                                    className="flex-1 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                                                />
+                                                <span className="text-2xl font-bold text-amber-400 min-w-[3rem] text-right">
+                                                    {customTimeMinutes}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardBody>
+                    </Card>
+                )}
 
                 <Card className="bg-white/5 border border-white/10 mb-6">
                     <CardBody className="p-0">
