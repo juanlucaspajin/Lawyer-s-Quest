@@ -73,7 +73,12 @@ export default function RegisterPage() {
         <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4">
             <Card className="w-full max-w-md shadow-2xl">
                 <CardHeader className="flex flex-col gap-1 px-6 pt-6 pb-0">
-                    <h1 className="text-2xl font-bold">Crear una cuenta</h1>
+                    <div className="flex items-center gap-3 mb-2">
+                        <img src="/logo.png" alt="Acertijos de Estudio" className="h-12 w-12 object-contain" />
+                        <div>
+                            <h1 className="text-2xl font-bold">Crear una cuenta</h1>
+                        </div>
+                    </div>
                     <p className="text-sm text-default-500">
                         Completa tus datos para comenzar
                     </p>

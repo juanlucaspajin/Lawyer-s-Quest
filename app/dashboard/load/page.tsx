@@ -173,6 +173,7 @@ export default function LoadKnowledgePage() {
                             />
                         </svg>
                     </Button>
+                    <img src="/logo.png" alt="Acertijos de Estudio" className="h-8 w-8 object-contain" />
                     <h1 className="text-xl font-bold text-white tracking-tight">
                         Cargar Conocimiento
                     </h1>

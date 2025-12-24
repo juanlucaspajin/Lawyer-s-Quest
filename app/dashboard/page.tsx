@@ -13,17 +13,25 @@ export default function DashboardPage() {
         router.push("/login");
     };
 
+    // Get display name from user metadata
+    const displayName = user?.user_metadata?.name 
+        ? `${user.user_metadata.name}${user.user_metadata.lastname ? ' ' + user.user_metadata.lastname : ''}`
+        : user?.email;
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
             {/* Header */}
             <header className="border-b border-white/10 backdrop-blur-sm">
                 <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-                    <h1 className="text-xl font-bold text-white tracking-tight">
-                        Panel Principal
-                    </h1>
+                    <div className="flex items-center gap-3">
+                        <img src="/logo.png" alt="Acertijos de Estudio" className="h-10 w-10 object-contain" />
+                        <h1 className="text-xl font-bold text-white tracking-tight">
+                            Panel Principal
+                        </h1>
+                    </div>
                     <div className="flex items-center gap-4">
                         <span className="text-sm text-white/60">
-                            {user?.email}
+                            {displayName}
                         </span>
                         <Button
                             size="sm"
@@ -41,7 +49,7 @@ export default function DashboardPage() {
             <main className="max-w-6xl mx-auto px-6 py-16">
                 <div className="text-center mb-12">
                     <h2 className="text-4xl font-bold text-white mb-3">
-                        Bienvenido de nuevo
+                        Bienvenido de nuevo{user?.user_metadata?.name ? `, ${user.user_metadata.name}` : ''}
                     </h2>
                     <p className="text-white/60 text-lg">
                         ¿Qué te gustaría hacer hoy?

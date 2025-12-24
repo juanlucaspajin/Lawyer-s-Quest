@@ -23,12 +23,17 @@ interface QuizQuestion {
 
 type QuizState = "loading" | "ready" | "playing" | "review" | "complete" | "timeout" | "error";
 
-const QUIZ_DURATION_SECONDS = 10 * 60; // 10 minutes
-
 export default function QuizPlayPage() {
     const { user, session } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
+
+    // Parse URL params
+    const documentNames = searchParams.get("docs")?.split(",").filter(Boolean) || [];
+    const knowledgeIds = searchParams.get("knowledge")?.split(",").filter(Boolean) || [];
+    const customQuestionCount = searchParams.get("questionCount") ? parseInt(searchParams.get("questionCount")!) : 10;
+    const customTimeMinutes = searchParams.get("timeMinutes") ? parseInt(searchParams.get("timeMinutes")!) : 10;
+    const QUIZ_DURATION_SECONDS = customTimeMinutes * 60;
 
     // Quiz state
     const [quizState, setQuizState] = useState<QuizState>("loading");
@@ -46,9 +51,8 @@ export default function QuizPlayPage() {
     const [timeRemaining, setTimeRemaining] = useState(QUIZ_DURATION_SECONDS);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Parse URL params
-    const documentNames = searchParams.get("docs")?.split(",").filter(Boolean) || [];
-    const knowledgeIds = searchParams.get("knowledge")?.split(",").filter(Boolean) || [];
+    // Parse URL params - moved earlier
+    // (already moved above)
 
     // Format time as MM:SS
     const formatTime = (seconds: number) => {
@@ -118,7 +122,7 @@ export default function QuizPlayPage() {
                 body: JSON.stringify({
                     documentNames,
                     knowledgeIds,
-                    questionCount: 10,
+                    questionCount: customQuestionCount,
                 }),
             });
 
@@ -137,7 +141,7 @@ export default function QuizPlayPage() {
             setError(err.message || "Error al generar el cuestionario");
             setQuizState("error");
         }
-    }, [user, session, documentNames, knowledgeIds]);
+    }, [user, session, documentNames, knowledgeIds, customQuestionCount]);
 
     useEffect(() => {
         if (documentNames.length === 0 && knowledgeIds.length === 0) {
@@ -361,7 +365,7 @@ export default function QuizPlayPage() {
                                 <p className="text-white/40 text-xs sm:text-sm">Fuentes</p>
                             </div>
                             <div className="bg-white/5 rounded-xl p-3 sm:p-4">
-                                <p className="text-2xl sm:text-3xl font-bold text-amber-400">10</p>
+                                <p className="text-2xl sm:text-3xl font-bold text-amber-400">{customTimeMinutes}</p>
                                 <p className="text-white/40 text-xs sm:text-sm">Minutos</p>
                             </div>
                         </div>
@@ -371,7 +375,7 @@ export default function QuizPlayPage() {
                                 <svg className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
-                                <span className="font-medium text-sm sm:text-base">10 minutos para completar</span>
+                                <span className="font-medium text-sm sm:text-base">{customTimeMinutes} minutos para completar</span>
                             </div>
                             <p className="text-white/50 text-xs sm:text-sm mt-1">
                                 El tiempo comienza al presionar el botón
@@ -515,7 +519,7 @@ export default function QuizPlayPage() {
                             {score} de {questions.length} correctas
                         </p>
                         <p className="text-white/40 text-xs sm:text-sm mb-5 sm:mb-8">
-                            Tiempo: {formatTime(timeUsed)} de 10:00
+                            Tiempo: {formatTime(timeUsed)} de {formatTime(QUIZ_DURATION_SECONDS)}
                         </p>
 
                         {/* Score Breakdown */}

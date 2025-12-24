@@ -16,6 +16,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Acertijos de Estudio",
   description: "Aprende sin llorar",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({

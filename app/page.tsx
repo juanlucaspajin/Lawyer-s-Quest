@@ -3,8 +3,10 @@
 import { Button } from "@heroui/react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useAuth } from "@/app/contexts/AuthContext";
 
 export default function Home() {
+  const { isAuthenticated, isLoading } = useAuth();
   return (
     <div className="relative min-h-screen overflow-hidden bg-zinc-950">
       {/* Animated gradient orbs */}
@@ -27,8 +29,8 @@ export default function Home() {
       {/* Navigation */}
       <nav className="relative z-10 flex items-center justify-between px-6 py-6 md:px-12 lg:px-20">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-400 via-fuchsia-400 to-rose-400 shadow-lg shadow-violet-500/20">
-            <span className="text-xl">🧠</span>
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl overflow-hidden">
+            <img src="/logo.png" alt="Acertijos de Estudio" className="h-full w-full object-contain" />
           </div>
           <div className="flex flex-col">
             <span className="text-lg font-bold tracking-tight text-white">Acertijos de Estudio</span>
@@ -36,22 +38,37 @@ export default function Home() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Button
-            as={Link}
-            href="/login"
-            variant="light"
-            className="font-medium text-zinc-300 hover:text-white"
-          >
-            Entrar
-          </Button>
-          <Button
-            as={Link}
-            href="/register"
-            className="bg-white font-medium text-zinc-900 hover:bg-zinc-100"
-            radius="full"
-          >
-            ¡Empezar gratis!
-          </Button>
+          {isLoading ? (
+            <div className="h-10 w-32 animate-pulse rounded-full bg-zinc-800" />
+          ) : isAuthenticated ? (
+            <Button
+              as={Link}
+              href="/dashboard"
+              className="bg-gradient-to-r from-violet-500 via-fuchsia-500 to-rose-500 font-medium text-white shadow-lg shadow-violet-500/25"
+              radius="full"
+            >
+              Ir al Panel
+            </Button>
+          ) : (
+            <>
+              <Button
+                as={Link}
+                href="/login"
+                variant="light"
+                className="font-medium text-zinc-300 hover:text-white"
+              >
+                Entrar
+              </Button>
+              <Button
+                as={Link}
+                href="/register"
+                className="bg-white font-medium text-zinc-900 hover:bg-zinc-100"
+                radius="full"
+              >
+                ¡Empezar gratis!
+              </Button>
+            </>
+          )}
         </div>
       </nav>
 
@@ -101,37 +118,54 @@ export default function Home() {
             transition={{ delay: 0.6, duration: 0.5 }}
             className="flex flex-col items-center justify-center gap-4 sm:flex-row"
           >
-            <Button
-              as={Link}
-              href="/register"
-              size="lg"
-              className="group relative w-full overflow-hidden bg-gradient-to-r from-violet-500 via-fuchsia-500 to-rose-500 px-8 py-6 text-base font-semibold text-white shadow-lg shadow-violet-500/25 transition-all hover:shadow-xl hover:shadow-fuchsia-500/30 sm:w-auto"
-              radius="full"
-            >
-              <span className="relative z-10">Crear cuenta gratis 🚀</span>
-              <div className="absolute inset-0 bg-gradient-to-r from-violet-400 via-fuchsia-400 to-rose-400 opacity-0 transition-opacity group-hover:opacity-100" />
-            </Button>
-            <Button
-              as={Link}
-              href="/login"
-              size="lg"
-              variant="bordered"
-              className="w-full border-zinc-700 px-8 py-6 text-base font-semibold text-white transition-all hover:border-zinc-500 hover:bg-zinc-800/50 sm:w-auto"
-              radius="full"
-            >
-              Ya tengo cuenta 😎
-            </Button>
+            {isAuthenticated ? (
+              <Button
+                as={Link}
+                href="/dashboard"
+                size="lg"
+                className="group relative w-full overflow-hidden bg-gradient-to-r from-violet-500 via-fuchsia-500 to-rose-500 px-8 py-6 text-base font-semibold text-white shadow-lg shadow-violet-500/25 transition-all hover:shadow-xl hover:shadow-fuchsia-500/30 sm:w-auto"
+                radius="full"
+              >
+                <span className="relative z-10">Ir a mi Panel 🚀</span>
+                <div className="absolute inset-0 bg-gradient-to-r from-violet-400 via-fuchsia-400 to-rose-400 opacity-0 transition-opacity group-hover:opacity-100" />
+              </Button>
+            ) : (
+              <>
+                <Button
+                  as={Link}
+                  href="/register"
+                  size="lg"
+                  className="group relative w-full overflow-hidden bg-gradient-to-r from-violet-500 via-fuchsia-500 to-rose-500 px-8 py-6 text-base font-semibold text-white shadow-lg shadow-violet-500/25 transition-all hover:shadow-xl hover:shadow-fuchsia-500/30 sm:w-auto"
+                  radius="full"
+                >
+                  <span className="relative z-10">Crear cuenta gratis 🚀</span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-violet-400 via-fuchsia-400 to-rose-400 opacity-0 transition-opacity group-hover:opacity-100" />
+                </Button>
+                <Button
+                  as={Link}
+                  href="/login"
+                  size="lg"
+                  variant="bordered"
+                  className="w-full border-zinc-700 px-8 py-6 text-base font-semibold text-white transition-all hover:border-zinc-500 hover:bg-zinc-800/50 sm:w-auto"
+                  radius="full"
+                >
+                  Ya tengo cuenta 😎
+                </Button>
+              </>
+            )}
           </motion.div>
 
           {/* Fun disclaimer */}
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.8, duration: 0.5 }}
-            className="mt-6 text-sm text-zinc-600"
-          >
-            * No requiere tarjeta de crédito. Solo motivación (y algo de Wi-Fi).
-          </motion.p>
+          {!isAuthenticated && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.8, duration: 0.5 }}
+              className="mt-6 text-sm text-zinc-600"
+            >
+              * No requiere tarjeta de crédito. Solo motivación (y algo de Wi-Fi).
+            </motion.p>
+          )}
         </motion.div>
 
         {/* Features preview */}
